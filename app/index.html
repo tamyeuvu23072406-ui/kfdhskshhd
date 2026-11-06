@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Manga Cleaner — Xóa chữ manga miễn phí (chạy 100% trên máy)</title>
+<meta name="description" content="Công cụ xóa chữ manga hoàn toàn miễn phí. AI chạy local trong trình duyệt, không cần API key, không tải ảnh lên server. Hỗ trợ PC và Android, xuất file ZIP.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='6' width='40' height='36' rx='3' fill='%2318181f' stroke='%23ececf1' stroke-width='3'/%3E%3Cpath d='M12 16h20M12 24h24M12 32h14' stroke='%23ececf1' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M35 12l7 7M42 12l-7 7' stroke='%23e63946' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"><link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 48 48" width="34" height="34" aria-hidden="true">
+      <rect x="4" y="6" width="40" height="36" rx="3" fill="none" stroke="currentColor" stroke-width="3"/>
+      <path d="M12 16h20M12 24h24M12 32h14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      <path d="M35 12l7 7M42 12l-7 7" stroke="#e63946" stroke-width="4" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <h1>Manga Cleaner</h1>
+      <p class="tagline">Xóa chữ manga miễn phí — AI chạy 100% trong trình duyệt của bạn</p>
+    </div>
+  </div>
+  <span class="badge-free">FREE · KHÔNG API KEY · KHÔNG UPLOAD ẢNH</span>
+</header>
+
+<main>
+  <!-- Bước 1: chọn ảnh -->
+  <section class="card" id="step-pick">
+    <h2><span class="step-no">1</span> Chọn ảnh manga</h2>
+    <div class="pick-grid">
+      <button class="btn btn-primary" id="btn-pick-files" type="button">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z"/></svg>
+        <span><strong>Chọn ảnh</strong><small>Trên điện thoại: nhấn giữ để chọn nhiều ảnh cùng lúc (ví dụ 150 ảnh)</small></span>
+      </button>
+      <button class="btn" id="btn-pick-folder" type="button">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+        <span><strong>Chọn cả thư mục</strong><small>Lấy tất cả ảnh trong một thư mục (PC / Android có hỗ trợ)</small></span>
+      </button>
+    </div>
+    <div class="dropzone" id="dropzone">
+      <p>Kéo &amp; thả ảnh hoặc thư mục vào đây (PC)</p>
+      <small>Hỗ trợ PNG · JPG · WEBP · GIF · BMP</small>
+    </div>
+    <input type="file" id="input-files" accept="image/*" multiple hidden>
+    <input type="file" id="input-folder" webkitdirectory hidden>
+  </section>
+
+  <!-- Bước 2: danh sách -->
+  <section class="card hidden" id="step-list">
+    <h2><span class="step-no">2</span> Danh sách ảnh <span class="count-pill" id="count-pill">0 ảnh</span></h2>
+    <div class="list-actions">
+      <button class="btn btn-small" id="btn-clear" type="button">Xóa danh sách</button>
+    </div>
+    <ul class="file-list" id="file-list"></ul>
+  </section>
+
+  <!-- Bước 3: cài đặt + chạy -->
+  <section class="card hidden" id="step-run">
+    <h2><span class="step-no">3</span> Xóa chữ</h2>
+
+    <div class="model-status" id="model-status">
+      <div class="model-row">
+        <span class="dot" id="model-dot"></span>
+        <span id="model-label">Đang tải AI…</span>
+      </div>
+      <div class="progress"><div class="progress-fill" id="model-progress"></div></div>
+      <small id="model-note">Lần đầu tải ~95MB, các lần sau tải từ bộ nhớ cache của trình duyệt nên rất nhanh.</small>
+    </div>
+
+    <div class="settings">
+      <label class="setting">
+        <span>Độ nhạy phát hiện chữ <em id="threshold-val">0.40</em></span>
+        <input type="range" id="threshold" min="0.20" max="0.70" step="0.05" value="0.40">
+        <small>Thấp = bắt được nhiều chữ mờ hơn (có thể nhầm vùng tối). Cao = chính xác hơn nhưng có thể sót chữ.</small>
+      </label>
+      <label class="setting">
+        <span>Độ phủ vùng xóa <em id="dilate-val">9 px</em></span>
+        <input type="range" id="dilate" min="3" max="15" step="1" value="9">
+        <small>Vùng xóa rộng hơn chữ một chút để không sót viền chữ / bóng chữ.</small>
+      </label>
+    </div>
+
+    <div class="run-row">
+      <button class="btn btn-primary btn-big" id="btn-start" type="button" disabled>
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+        Bắt đầu xóa chữ
+      </button>
+      <div class="overall-progress" id="overall-progress" hidden>
+        <div class="progress"><div class="progress-fill" id="overall-fill"></div></div>
+        <span id="overall-text">0 / 0</span>
+      </div>
+    </div>
+    <div class="log" id="log" aria-live="polite"></div>
+  </section>
+
+  <!-- Kết quả -->
+  <section class="card hidden" id="step-result">
+    <h2><span class="step-no">4</span> Hoàn thành</h2>
+    <p id="result-summary"></p>
+    <div class="result-actions">
+      <button class="btn btn-primary btn-big" id="btn-download-zip" type="button">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        Tải về file ZIP (<span id="zip-size">…</span>)
+      </button>
+      <button class="btn" id="btn-reset" type="button">Xử lý ảnh khác</button>
+    </div>
+    <p class="hint">Bạn cũng có thể nhấn vào từng ảnh trong danh sách ở bước 2 để tải riêng ảnh đó.</p>
+  </section>
+
+  <footer class="foot">
+    <p>Model phát hiện chữ: <strong>comic-text-detector</strong> (dmMaze / zyddnys — manga-image-translator, license Apache-2.0, chạy qua ONNX Runtime). Thuật toán xóa chữ: inpainting Navier-Stokes của OpenCV, chạy hoàn toàn offline sau khi tải trang. Ảnh của bạn không bao giờ rời khỏi thiết bị.</p>
+  </footer>
+</main>
+
+<script src="vendor/ort/ort.min.js"></script>
+<script src="vendor/opencv/opencv.js"></script>
+<script src="vendor/jszip/jszip.min.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
